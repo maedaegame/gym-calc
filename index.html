@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111315">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Plate Loader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow column — total up top, the side's stack, plate buttons, then 50% / 80% loads */
+:root {
+  --bg: #f3f4f5;
+  --surface: #ffffff;
+  --fg: #16181b;
+  --muted: #6c727a;
+  --line: #dfe2e6;
+  --iron: #2a2e33;
+  --iron-fg: #f3f4f5;
+  --accent: #d6452b;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111315; --surface: #1b1e21; --fg: #eceef0; --muted: #8d949c;
+    --line: #2c3035; --iron: #3a3f45; --iron-fg: #f3f4f5; --accent: #ef6a4f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111315; --surface: #1b1e21; --fg: #eceef0; --muted: #8d949c;
+  --line: #2c3035; --iron: #3a3f45; --iron-fg: #f3f4f5; --accent: #ef6a4f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { padding-block: env(safe-area-inset-top, 0px) env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+main { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+
+.label { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.num { font-family: var(--display); font-variant-numeric: tabular-nums; }
+
+.total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.total .big { font-size: 76px; line-height: .9; font-weight: 700; letter-spacing: -.01em; }
+.total .big small { font-size: 26px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+.total .side { text-align: right; }
+.total .side .num { font-size: 26px; font-weight: 600; display: block; }
+
+/* the sleeve: plates loaded on one side */
+.sleeve {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  min-height: 92px; padding: 10px 12px; display: flex; align-items: center; gap: 3px;
+  overflow-x: auto;
+}
+.sleeve .collar { width: 10px; height: 26px; background: var(--line); border-radius: 2px; flex: none; margin-right: 4px; }
+.sleeve .empty { color: var(--muted); font-size: 14px; }
+.slice {
+  flex: none; background: var(--iron); color: var(--iron-fg); border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--display); font-weight: 600; font-size: 12px; writing-mode: vertical-rl; transform: rotate(180deg);
+}
+
+.plates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.plate {
+  aspect-ratio: 1; max-width: 100%; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--iron); color: var(--iron-fg);
+  font-family: var(--display); font-weight: 700; font-size: 28px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 0 0 6px rgba(255,255,255,.06), inset 0 0 0 22px rgba(0,0,0,.12);
+  transition: transform .08s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.plate:active { transform: scale(.94); }
+.plate:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.actions { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  border-radius: 10px; padding: 14px; font-family: var(--display); font-size: 20px; font-weight: 600;
+  letter-spacing: .03em; cursor: pointer;
+}
+.btn.remove { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:disabled { opacity: .4; cursor: default; }
+
+.pct { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.pct-row { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.pct-row .p { font-family: var(--display); font-size: 24px; font-weight: 700; color: var(--accent); }
+.pct-row .load { min-width: 0; font-size: 15px; }
+.pct-row .load .per { color: var(--muted); font-size: 12px; display: block; margin-top: 2px; }
+.pct-row .w { font-size: 30px; font-weight: 600; text-align: right; }
+.pct-row .w small { font-size: 14px; color: var(--muted); margin-left: 2px; }
+@media (prefers-reduced-motion: reduce) { .plate { transition: none; } }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="total">
+    <div>
+      <div class="label">Total</div>
+      <div class="big num" id="total">0<small>lb</small></div>
+    </div>
+    <div class="side">
+      <div class="label">Per side</div>
+      <span class="num" id="side">0</span>
+    </div>
+  </section>
+
+  <div class="sleeve" id="sleeve" aria-label="Plates on one side"></div>
+
+  <section class="plates" id="plates" aria-label="Add a plate to one side"></section>
+
+  <div class="actions">
+    <button class="btn remove" id="remove">Remove last</button>
+    <button class="btn" id="clear">Clear</button>
+  </div>
+
+  <section class="pct" id="pct" aria-label="Percent loads"></section>
+</main>
+
+<script>
+const PLATES = [45, 35, 25, 10, 5, 2.5];
+let stack = [];
+try { const s = JSON.parse(localStorage.getItem("plateStack") || "null"); if (Array.isArray(s)) stack = s.filter(p => PLATES.includes(p)); } catch (e) {}
+if (!stack.length && !hasSaved()) stack = [45, 25]; // example load on first open
+
+function hasSaved() { try { return localStorage.getItem("plateStack") !== null; } catch (e) { return false; } }
+function save() { try { localStorage.setItem("plateStack", JSON.stringify(stack)); } catch (e) {} }
+const fmt = n => (Math.round(n * 10) / 10).toString();
+
+// fewest plates for a per-side weight (target rounded to nearest 2.5)
+function platesFor(perSide) {
+  let rem = Math.round(perSide / 2.5) * 2.5, out = [];
+  for (const p of PLATES) while (rem >= p - 1e-9) { out.push(p); rem -= p; }
+  return out;
+}
+
+const platesEl = document.getElementById("plates");
+[...PLATES].reverse().forEach(p => {
+  const b = document.createElement("button");
+  b.className = "plate"; b.textContent = fmt(p); b.id = "plate-" + String(p).replace(".", "_");
+  const scale = 0.62 + 0.38 * (p / 45);
+  b.style.width = (scale * 100) + "%"; b.style.justifySelf = "center"; b.style.alignSelf = "center";
+  b.setAttribute("aria-label", "Add " + p + " lb plate");
+  b.onclick = () => { stack.push(p); render(); };
+  platesEl.appendChild(b);
+});
+document.getElementById("remove").onclick = () => { stack.pop(); render(); };
+document.getElementById("clear").onclick = () => { stack = []; render(); };
+
+function render() {
+  const side = stack.reduce((a, b) => a + b, 0), total = side * 2;
+  document.getElementById("total").innerHTML = fmt(total) + "<small>lb</small>";
+  document.getElementById("side").textContent = fmt(side);
+
+  const sl = document.getElementById("sleeve");
+  sl.innerHTML = '<div class="collar"></div>';
+  if (!stack.length) sl.insertAdjacentHTML("beforeend", '<span class="empty">Tap plates to load one side</span>');
+  [...stack].sort((a, b) => b - a).forEach(p => {
+    const d = document.createElement("div"); d.className = "slice";
+    d.style.height = (26 + 46 * (p / 45)) + "px";
+    d.style.width = (p >= 25 ? 22 : p >= 10 ? 16 : 12) + "px";
+    d.textContent = fmt(p); sl.appendChild(d);
+  });
+
+  document.getElementById("remove").disabled = !stack.length;
+  document.getElementById("clear").disabled = !stack.length;
+
+  const pct = document.getElementById("pct");
+  pct.innerHTML = "";
+  [0.5, 0.8].forEach(f => {
+    const ps = platesFor(side * f), ws = ps.reduce((a, b) => a + b, 0);
+    const row = document.createElement("div"); row.className = "pct-row";
+    row.innerHTML =
+      `<div class="p">${f * 100}%</div>
+       <div class="load">${ps.length ? ps.map(fmt).join(" + ") : "No plates"}<span class="per">per side</span></div>
+       <div class="w num">${fmt(ws * 2)}<small>lb</small></div>`;
+    pct.appendChild(row);
+  });
+  save();
+}
+render();
+</script>
+</body>
+</html>
